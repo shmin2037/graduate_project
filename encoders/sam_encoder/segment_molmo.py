@@ -146,16 +146,6 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0,0,0,0), lw=2))   
 
-def extract_masked_features(image_embedding, segmentation_mask):
-    print("mask_shape : ", segmentation_mask.shape)
-    print("embedding shape : ", image_embedding.shape)
-    mask_tensor = torch.tensor(segmentation_mask).float().unsqueeze(0)
-    mask_tensor = F.interpolate(mask_tensor, size=image_embedding.shape[-2:], mode="nearest")
-    masked_features = image_embedding * mask_tensor
-    feature_vector = masked_features.sum(dim=(2,3)) / (mask_tensor.sum(dim=(2,3)) + 1e-6)
-    
-    return feature_vector
-
 def main(args: argparse.Namespace) -> None:
     print("Loading model...")
     sam = sam_model_registry[args.model_type](checkpoint=args.checkpoint)
@@ -237,8 +227,7 @@ def main(args: argparse.Namespace) -> None:
             seg_path = os.path.join(args.data, "seg_molmo_{}_img".format(args.iteration))
     os.makedirs(seg_path, exist_ok=True)
 
-#   for name in ["train","test","novel_views"]:
-    for name in ["train"]:
+    for name in ["train","test","novel_views"]:
         input_path = os.path.join(args.data, name)
         if not os.path.exists(input_path):
             print(name, "do not exists!")
@@ -322,15 +311,22 @@ def main(args: argparse.Namespace) -> None:
             masks, _, low_res_logits = ort_session.run(None, ort_inputs)
             masks = masks > predictor.model.mask_threshold
 
-            # Embed SBERT onto masked image
+
+            # Embed features onto masked image
             H, W = image.shape[:2]
             mask = masks[0]
             one_hot_dim = 4
+
             embedding_map = torch.zeros((one_hot_dim,H,W))
             prompt_embedding = torch.zeros(one_hot_dim)
             prompt_embedding[2]=1
             background_embedding = torch.zeros(one_hot_dim)
             background_embedding[0] = 1
+
+            # or if use SBERT
+            # prompt_embedding = sbert.encode(args.prompt) # this prudce (1,364) vector
+            # background_embedding = sbert.encode("background")
+
             for i in range(H):
                 for j in range(W):
                     if mask[0,i,j] == 1:
@@ -340,6 +336,8 @@ def main(args: argparse.Namespace) -> None:
 
             feature_save_path = os.path.join(output_path, image_name + "_features.pt")
             torch.save(embedding_map, feature_save_path)
+
+
 
             plt.figure(figsize=(10, 10))
             plt.imshow(image)
