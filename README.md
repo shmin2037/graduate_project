@@ -16,6 +16,7 @@ export REPLICATE_API_TOKEN = "YOUR TOKEN"
 ```
 
 For now,segment_molmo point out the image based on prompt and segment them. And then produce 4 dimension one-hot embeddings for masked region.
+Make sure to check channel dimension which refered at below.
 
 # Environment setup
 
