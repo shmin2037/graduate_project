@@ -1,10 +1,10 @@
 # Updated code
 
 segment_molmo.py
-<!--```sehll
+```sehll
 cd encoders/sam_encoder
 python segment_molmo.py --checkpoint checkpoints/sam_vit_h_4b8939.pth --model-type vit_h --data ../../output/OUTPUT_NAME --iteration <iteration_num> --prompt <prompt>
-```-->
+```
 
 To run segment_molmo.py, you need to add .env file
 ```
