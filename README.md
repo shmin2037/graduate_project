@@ -1,19 +1,4 @@
 
-
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>@inproceedings{zhou2024feature,
-  title={Feature 3dgs: Supercharging 3d gaussian splatting to enable distilled feature fields},
-  author={Zhou, Shijie and Chang, Haoran and Jiang, Sicheng and Fan, Zhiwen and Zhu, Zehao and Xu, Dejia and Chari, Pradyumna and You, Suya and Wang, Zhangyang and Kadambi, Achuta},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={21676--21685},
-  year={2024}
-}</code></pre>
-  </div>
-</section>
-
-
 # Environment setup
 Our default, provided install method is based on Conda package and environment management:
 <!-- ```
