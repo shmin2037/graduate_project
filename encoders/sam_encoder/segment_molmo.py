@@ -19,6 +19,7 @@ from PIL import Image
 import re
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+from sklearn.decomposition import PCA
 
 load_dotenv()
 
@@ -317,15 +318,16 @@ def main(args: argparse.Namespace) -> None:
             mask = masks[0]
             one_hot_dim = 4
 
-            embedding_map = torch.zeros((one_hot_dim,H,W))
-            prompt_embedding = torch.zeros(one_hot_dim)
-            prompt_embedding[2]=1
-            background_embedding = torch.zeros(one_hot_dim)
-            background_embedding[0] = 1
+            # prompt_embedding = torch.zeros(one_hot_dim)
+            # prompt_embedding[2]=1
+            # background_embedding = torch.zeros(one_hot_dim)
+            # background_embedding[0] = 1
 
             # or if use SBERT
-            # prompt_embedding = sbert.encode(args.prompt) # this prudce (1,364) vector
-            # background_embedding = sbert.encode("background")
+            prompt_embedding = torch.tensor(sbert.encode(args.prompt)) # this prudce (1,364) vector
+            background_embedding = torch.tensor(sbert.encode("background"))
+
+            embedding_map = torch.zeros((len(prompt_embedding),H,W))
 
             for i in range(H):
                 for j in range(W):
@@ -333,10 +335,19 @@ def main(args: argparse.Namespace) -> None:
                         embedding_map[:,i,j] = prompt_embedding
                     else:
                         embedding_map[:,i,j] = background_embedding
+            
+            pool_size = 4
+            downsampled_map = F.adaptive_avg_pool2d(embedding_map.unsqueeze(0), (H//pool_size, W//pool_size)).squeeze(0)
+
+            C, H_new, W_new = downsampled_map.shape
+            flattened_features = downsampled_map.reshape(C,-1).T
+
+            pca = PCA(n_components = 64)
+            compressed_features = pca.fit_transform(flattened_features)
+            compressed_map = torch.tensor(compressed_features.T).reshape(64,H_new,W_new)
 
             feature_save_path = os.path.join(output_path, image_name + "_features.pt")
-            torch.save(embedding_map, feature_save_path)
-
+            torch.save(compressed_map, feature_save_path)
 
 
             plt.figure(figsize=(10, 10))

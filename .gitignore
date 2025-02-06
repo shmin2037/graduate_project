@@ -15,4 +15,5 @@ screenshots
 data
 data_scannet
 .env
+rename.py
 
