@@ -1,3 +1,6 @@
+# Citation
+Zhou, S., Chang, H., Jiang, S., Fan, Z., Zhu, Z., Xu, D., ... & Kadambi, A. (2024). Feature 3dgs: Supercharging 3d gaussian splatting to enable distilled feature fields. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (pp. 21676-21685).
+
 # Updated code
 
 Assuming all the environment setup and dataset preparations are completed as the original Feature-3dgs.
