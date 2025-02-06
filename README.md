@@ -23,6 +23,7 @@ export REPLICATE_API_TOKEN = "YOUR TOKEN"
 
 For now,segment_molmo point out the image based on prompt and segment them. And then produce 4 dimension one-hot embeddings for masked region.
 To train with newely produced features, make sure to check channel dimensions, which is refered at Training part.
+To use your own feature directory, add path onto line 164, and line 268 of scene/dataset_readers.py
 The following section is identical to the Readme of original Feature-3dgs.
 
 # Environment setup
