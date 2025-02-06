@@ -263,9 +263,9 @@ void sibr::RemotePointView::onGUI()
 
 		ImGui::Dummy(ImVec2(0.0f, 10.0f));
         ImGui::Text("Live Performance Metrics");
-        for (const auto& pair : globalMetricsDict) {
-            ImGui::Text("%s: %.3f", pair.first.c_str(), pair.second);
-        }
+        // for (const auto& pair : globalMetricsDict) {
+        //     ImGui::Text("%s: %.3f", pair.first.c_str(), pair.second);
+        // }
 	}
 	ImGui::End();
 }

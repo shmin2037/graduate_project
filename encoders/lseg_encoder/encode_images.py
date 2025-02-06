@@ -350,7 +350,7 @@ def test(args):
     # scales = np.linspace(0.75, args.resize_max, 7)
     # scales = [0.75, 1.0, 1.25]
     # scales = [0.75, 1.0, 1.25, 1.5, 1.75]
-    scales = [0.75, 1.0, 1.25, 1.75]
+    scales = [0.75, 1.0, 1.25]
     print("scales", scales)
     print("test rgb dir", args.test_rgb_dir)
     print("outdir", args.outdir)

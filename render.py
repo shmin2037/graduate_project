@@ -39,7 +39,7 @@ def feature_visualize_saving(feature):
     fmap = feature[None, :, :, :] # torch.Size([1, 512, h, w])
     fmap = nn.functional.normalize(fmap, dim=1)
     pca = sklearn.decomposition.PCA(3, random_state=42)
-    f_samples = fmap.permute(0, 2, 3, 1).reshape(-1, fmap.shape[1])[::3].cpu().numpy()
+    f_samples = fmap.permute(0, 2, 3, 1).reshape(-1, fmap.shape[1])[::3].cpu().numpy() # subsample every 3rd pixel
     transformed = pca.fit_transform(f_samples)
     feature_pca_mean = torch.tensor(f_samples.mean(0)).float().cuda()
     feature_pca_components = torch.tensor(pca.components_).float().cuda()
@@ -114,7 +114,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         if speedup:
             gt_feature_map = views[0].semantic_feature.cuda()
             feature_out_dim = gt_feature_map.shape[0]
-            feature_in_dim = int(feature_out_dim/4)
+            feature_in_dim = int(feature_out_dim/1)
             cnn_decoder = CNN_decoder(feature_in_dim, feature_out_dim)
             cnn_decoder.load_state_dict(torch.load(decoder_ckpt_path))
         
@@ -258,7 +258,7 @@ def render_novel_views(model_path, name, iteration, views, gaussians, pipeline, 
         if speedup:
             gt_feature_map = views[0].semantic_feature.cuda()
             feature_out_dim = gt_feature_map.shape[0]
-            feature_in_dim = int(feature_out_dim/4)
+            feature_in_dim = int(feature_out_dim/1)
             cnn_decoder = CNN_decoder(feature_in_dim, feature_out_dim)
             cnn_decoder.load_state_dict(torch.load(decoder_ckpt_path))
         

@@ -48,7 +48,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     
     # speed up
     if dataset.speedup:
-        feature_in_dim = int(feature_out_dim/4)
+        feature_in_dim = int(feature_out_dim/1)
         cnn_decoder = CNN_decoder(feature_in_dim, feature_out_dim)
         cnn_decoder_optimizer = torch.optim.Adam(cnn_decoder.parameters(), lr=0.0001)
 

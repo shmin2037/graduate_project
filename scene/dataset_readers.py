@@ -117,6 +117,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantic_fe
                               semantic_feature_path=semantic_feature_path,
                               semantic_feature_name=semantic_feature_name) 
         cam_infos.append(cam_info)
+        del image
+        del semantic_feature
     sys.stdout.write('\n')
     return cam_infos
 
@@ -161,6 +163,10 @@ def readColmapSceneInfo(path, foundation_model, images, eval, llffhold=8):
 
     if foundation_model =='sam':
         semantic_feature_dir = "sam_embeddings" 
+    if foundation_model =='molmo_onehot':
+        semantic_feature_dir = "molmo_onehot"
+    if foundation_model =='molmo_sbert':
+        semantic_feature_dir = "molmo_sbert"
     elif foundation_model =='lseg':
         semantic_feature_dir = "rgb_feature_langseg" 
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, 
@@ -251,12 +257,18 @@ def readCamerasFromTransforms(path, transformsfile, white_background, semantic_f
                               semantic_feature=semantic_feature,
                               semantic_feature_path=semantic_feature_path,
                               semantic_feature_name=semantic_feature_name)) 
+            del image
+            del semantic_feature
             
     return cam_infos
 
 def readNerfSyntheticInfo(path, foundation_model, white_background, eval, extension=".png"): 
     if foundation_model =='sam':
         semantic_feature_dir = "sam_embeddings" 
+    if foundation_model =='molmo_onehot':
+        semantic_feature_dir = "molmo_onehot"
+    if foundation_model =='molmo_sbert':
+        semantic_feature_dir = "molmo_sbert"
     elif foundation_model =='lseg':
         semantic_feature_dir = "rgb_feature_langseg" 
 

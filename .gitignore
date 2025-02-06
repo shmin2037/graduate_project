@@ -2,6 +2,7 @@
 *.pyc
 .vscode
 output
+my_scene
 build
 diff_rasterization/diff_rast.egg-info
 diff_rasterization/dist
@@ -9,5 +10,8 @@ tensorboard_3d
 screenshots
 *.ckpt
 *.pth
+*.pt
 data
 data_scannet
+.env
+

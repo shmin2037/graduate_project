@@ -24,3 +24,6 @@ git+https://github.com/zhanghang1989/PyTorch-Encoding/
 pycocotools
 onnxruntime 
 onnx
+replicate
+python-dotenv
+sentence-transformers
