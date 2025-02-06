@@ -11,6 +11,7 @@ screenshots
 *.ckpt
 *.pth
 *.pt
+*.dump
 data
 data_scannet
 .env
