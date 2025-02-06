@@ -1,5 +1,24 @@
+# Updated code
+
+segment_molmo.py
+<!--```sehll
+cd encoders/sam_encoder
+python segment_molmo.py --checkpoint checkpoints/sam_vit_h_4b8939.pth --model-type vit_h --data ../../output/OUTPUT_NAME --iteration <iteration_num> --prompt <prompt>
+```-->
+
+To run segment_molmo.py, you need to add .env file
+```
+REPLICATE_API_TOKEN = "YOUR TOKEN"
+```
+or
+```shell
+export REPLICATE_API_TOKEN = "YOUR TOKEN"
+```
+
+For now,segment_molmo point out the image based on prompt and segment them. And then produce 4 dimension one-hot embeddings for masked region.
 
 # Environment setup
+
 Our default, provided install method is based on Conda package and environment management:
 <!-- ```
 conda env create --file environment.yml
