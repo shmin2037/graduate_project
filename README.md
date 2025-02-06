@@ -1,5 +1,7 @@
 # Updated code
 
+Assuming all the environment setup and dataset preparations are completed as the original Feature-3dgs.
+
 segment_molmo.py
 ```sehll
 cd encoders/sam_encoder
