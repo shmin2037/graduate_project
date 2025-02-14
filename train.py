@@ -15,6 +15,7 @@ from random import randint
 from utils.loss_utils import l1_loss, ssim, tv_loss 
 from gaussian_renderer import render, network_gui
 import sys
+sys.path.append('/home/marl1/2025_grad_proj/feature-3dgs/utils')
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
 import uuid
@@ -48,7 +49,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     
     # speed up
     if dataset.speedup:
-        feature_in_dim = int(feature_out_dim/1)
+        feature_in_dim = int(feature_out_dim/6)
         cnn_decoder = CNN_decoder(feature_in_dim, feature_out_dim)
         cnn_decoder_optimizer = torch.optim.Adam(cnn_decoder.parameters(), lr=0.0001)
 

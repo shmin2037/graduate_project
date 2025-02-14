@@ -1,5 +1,5 @@
 edit:
-  objects: ["car", "tree", "building", "sidewalk", "road"]
+  objects: ["pickable things", "background"]
   operations: "extraction" 
-  targets: "car" # the target object should be chosen from the object list
+  targets: "pickable things" # the target object should be chosen from the object list
   threshold: 0.24 # leave it empty if using argmax

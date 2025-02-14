@@ -168,7 +168,11 @@ def readColmapSceneInfo(path, foundation_model, images, eval, llffhold=8):
     elif foundation_model =='molmo_sbert':
         semantic_feature_dir = "molmo_sbert"
     elif foundation_model =='lseg':
-        semantic_feature_dir = "rgb_feature_langseg" 
+        semantic_feature_dir = "rgb_feature_langseg"
+    elif foundation_model == 'molmo_multi':
+        semantic_feature_dir = 'molmo_multi'
+    else:
+        semantic_feature_dir = "testvec"
 
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, 
                                            images_folder=os.path.join(path, reading_dir), semantic_feature_folder=os.path.join(path, semantic_feature_dir))
@@ -272,6 +276,10 @@ def readNerfSyntheticInfo(path, foundation_model, white_background, eval, extens
         semantic_feature_dir = "molmo_sbert"
     elif foundation_model =='lseg':
         semantic_feature_dir = "rgb_feature_langseg"
+    elif foundation_model == 'molmo_multi':
+        semantic_feature_dir = 'molmo_multi'
+    else:
+        semantic_feature_dir = "testvec"
 
     print("Reading Training Transforms")
     train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, semantic_feature_folder=os.path.join(path, semantic_feature_dir)) 

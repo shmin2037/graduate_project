@@ -23,11 +23,10 @@ from sklearn.decomposition import PCA
 
 
 def fetch_points_with_molmo(processor, model, prompt, image):
-    img = Image.open(image)
-    w,h = img.size
+    h,w = image.shape[:2]
     # Process the input for the model
     inputs = processor.process(
-        images=[img],
+        images=[image],
         text="Point to the {} in the scene.".format(prompt),
     )
     inputs["images"] = inputs["images"].to(torch.bfloat16)
@@ -35,7 +34,7 @@ def fetch_points_with_molmo(processor, model, prompt, image):
     inputs = {k: v.to(model.device).unsqueeze(0) for k, v in inputs.items()}
 
     with torch.no_grad():
-        with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
             output = model.generate_from_batch(
                 inputs,
                 GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
@@ -45,12 +44,11 @@ def fetch_points_with_molmo(processor, model, prompt, image):
             # Decode the generated tokens
             generated_tokens = output[0, inputs['input_ids'].size(1):]
             generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-
             # Print the generated text
             return extract_points(generated_text,w,h)
 
 def extract_points(molmo_output, image_w, image_h):
-    """Extract points from Molmo API output."""
+    """Extract points from Molmo output."""
     all_points = []
     for match in re.finditer(r'x\d*="\s*([0-9]+(?:\.[0-9]+)?)"\s+y\d*="\s*([0-9]+(?:\.[0-9]+)?)"', molmo_output):
         try:
@@ -75,8 +73,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--prompt", 
     type=str,
+    nargs="+",
     required=True,
-    help="Text prompt for Molmo API")
+    help="Text prompt for Molmo")
 
 parser.add_argument(
     "--model-type",
@@ -190,12 +189,21 @@ def main(args: argparse.Namespace) -> None:
 
     sbert = SentenceTransformer("all-MiniLM-L6-v2")
 
-     # use SBERT
-    prompt_embedding = sbert.encode(args.prompt, convert_to_tensor=True)
-    negative_embedding = -prompt_embedding
+    # use SBERT
+    # prompt_embedding = sbert.encode(args.prompt, convert_to_tensor=True)
+    # negative_embedding = -prompt_embedding
 
+    prompt_embedding_list = []
+    print(args.prompt)
+    for prompt in args.prompt:
+        prompt_embedding = sbert.encode(prompt, convert_to_tensor=True)
+        prompt_embedding_list.append(prompt_embedding)
+    negative_embedding_list = [-embedding for embedding in prompt_embedding_list]
+
+    
     # onnx model setup
     onnx_model = SamOnnxModel(sam, return_single_mask=True)
+    print("onnx model load complete.")
 
     dynamic_axes = {
         "point_coords": {1: "num_points"},
@@ -247,6 +255,7 @@ def main(args: argparse.Namespace) -> None:
     ort_session = onnxruntime.InferenceSession(args.onnx_path)
     # sam.to(device=args.device)
     predictor = SamPredictor(sam)
+    print("SAM predictor load complete.")
 
     # make seg dirs
     seg_path = os.path.join(args.data, "seg_molmo")
@@ -280,7 +289,8 @@ def main(args: argparse.Namespace) -> None:
     img = cv2.imread(images[0])
     H, W = img.shape[:2]
     pool_size = 4
-    embedding_dim = len(prompt_embedding)
+    embedding_dim = len(prompt_embedding_list[0])
+    print(f"Setup: {embedding_dim}x{H}x{W} with pool size {pool_size}")
 
     # Create an empty mask input and an indicator for no mask.
     onnx_mask_input = np.zeros((1, 1, 256, 256), dtype=np.float32)
@@ -288,98 +298,84 @@ def main(args: argparse.Namespace) -> None:
 
 
     for i, image in enumerate(tqdm(images, desc="Segment progress")):
-
-        embedding_map = torch.zeros((embedding_dim,H,W))
         image_name = image.split("/")[-1].split(".")[0]
-
-        # Input point
-        input_point = np.array(fetch_points_with_molmo(processor, model, args.prompt, image))
-        if input_point.size == 0:  # Empty array means no points found
-            print(f"No points detected in image {image}. Using fallback embeddings for all pixels...")
-
-            fallback_embeddings = negative_embedding.unsqueeze(-1).unsqueeze(-1)  # Shape becomes [embedding_dim, 1, 1]
-            fallback_embeddings = fallback_embeddings.repeat(1, H, W)  # Shape becomes [embedding_dim, H, W]
-            fallback_embeddings = F.adaptive_avg_pool2d(fallback_embeddings.unsqueeze(0), (H // pool_size, W // pool_size)).squeeze(0)
-
-            feature_save_path = os.path.join(args.data, "molmo_sbert", f"{image_name}_fmap_CxHxW.pt")
-            torch.save(fallback_embeddings, feature_save_path)
-
-            image = cv2.imread(image)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # (356, 477, 3)
-            plt.figure(figsize=(10,10))
-            plt.axis('off')
-            plt.imshow(image)
-
-            # Save the visualized output as a PNG
-            plt.savefig(os.path.join(output_path, image_name + '.png'), bbox_inches='tight', pad_inches=0)
-            plt.close()
-            
-            continue  # Skip the rest of the loop for this image
-
-        input_label = np.array([1 for _ in input_point])
-        # Add a batch index, concatenate a padding point, and transform.
-        onnx_coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
-        onnx_label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
-        onnx_coord = predictor.transform.apply_coords(onnx_coord, img.shape[:2]).astype(np.float32)
-
         
-        print(f"Processing '{image}' ...")
+        # Initialize accumulation variables
+        total_embedding_map = torch.zeros((embedding_dim, H, W), dtype=torch.float32)
+        mask_overlay = np.zeros((H, W, 3), dtype=np.uint8)  # RGB overlay image
+        
         image = cv2.imread(image)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # (356, 477, 3)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # Convert to RGB
 
-        predictor.set_image(image)
-        
+        for idx, prompt in enumerate(args.prompt):
+            embedding_map = torch.zeros((embedding_dim, H, W))
 
-        if args.image:
-            embedding = predictor.get_image_embedding().cpu().numpy()
-        else:
-            embedding = torch.load(features[i])[None] # (1, 256, 48, 64)
-            # add padding to recover the shape (1, 256, 64, 64)
-            _, _, fea_h, fea_w = embedding.shape
-            embedding = F.pad(embedding, (0, 0, 0, fea_w - fea_h))
-            embedding = embedding.cpu().numpy().astype(np.float32) # (1, 256, 64, 64)
+            # Input point
+            input_point = np.array(fetch_points_with_molmo(processor, model, prompt, image))
+            if input_point.size == 0:
+                print(f"No points detected in image {image_name} for prompt '{prompt}'. Using fallback embeddings.")
+                fallback_embeddings = negative_embedding_list[idx].unsqueeze(-1).unsqueeze(-1)
+                fallback_embeddings = fallback_embeddings.repeat(1, H, W)
+                fallback_embeddings = F.adaptive_avg_pool2d(fallback_embeddings.unsqueeze(0), (H // pool_size, W // pool_size)).squeeze(0)
 
+                total_embedding_map += fallback_embeddings  # Accumulate for averaging
+                continue  # Skip further processing for this prompt
 
+            input_label = np.array([1 for _ in input_point])
+            onnx_coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
+            onnx_label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
+            onnx_coord = predictor.transform.apply_coords(onnx_coord, image.shape[:2]).astype(np.float32)
 
-        # Package the inputs to run in the onnx model
-        ort_inputs = {
-            "image_embeddings": embedding,
-            "point_coords": onnx_coord,
-            "point_labels": onnx_label,
-            "mask_input": onnx_mask_input,
-            "has_mask_input": onnx_has_mask_input,
-            "orig_im_size": np.array(image.shape[:2], dtype=np.float32)
-        }
-        # Predict a mask and threshold it.
-        masks, _, low_res_logits = ort_session.run(None, ort_inputs)
-        masks = masks > predictor.model.mask_threshold
-        mask = masks[0]
+            predictor.set_image(image)
 
-        for k in range(H):
-            for l in range(W):
-                if mask[0,k,l] == 1:
-                    embedding_map[:,k,l] = prompt_embedding
-                else:
-                    embedding_map[:,k,l] = negative_embedding
-        
-        embedding_map = F.adaptive_avg_pool2d(embedding_map.unsqueeze(0), (H//pool_size, W//pool_size)).squeeze(0)
-        os.makedirs(os.path.join(args.data, "molmo_sbert"), exist_ok=True)
-        feature_save_path = os.path.join(args.data, "molmo_sbert", f"{image_name}_fmap_CxHxW.pt")
+            if args.image:
+                embedding = predictor.get_image_embedding().cpu().numpy()
+            else:
+                embedding = torch.load(features[i], weights_only=True)[None]  
+                _, _, fea_h, fea_w = embedding.shape
+                embedding = F.pad(embedding, (0, 0, 0, fea_w - fea_h))
+                embedding = embedding.cpu().numpy().astype(np.float32)
 
-        torch.save(embedding_map, feature_save_path)
+            ort_inputs = {
+                "image_embeddings": embedding,
+                "point_coords": onnx_coord,
+                "point_labels": onnx_label,
+                "mask_input": onnx_mask_input,
+                "has_mask_input": onnx_has_mask_input,
+                "orig_im_size": np.array(image.shape[:2], dtype=np.float32)
+            }
 
+            masks, _, low_res_logits = ort_session.run(None, ort_inputs)
+            masks = masks > predictor.model.mask_threshold
+            mask = masks[0]
 
+            # Accumulate pixel-wise embeddings
+            for k in range(H):
+                for l in range(W):
+                    if mask[0, k, l] == 1:
+                        embedding_map[:, k, l] = prompt_embedding_list[idx]
+                    else:
+                        embedding_map[:, k, l] = negative_embedding_list[idx]
+            total_embedding_map += embedding_map  # Accumulate for averaging
+
+            # Overlay mask with a unique color
+            color = np.random.randint(0, 255, (1, 3), dtype=np.uint8)  # Random RGB color
+            mask_overlay[mask[0] > 0] = color
+
+        # Compute final averaged embedding
+        avg_embedding_map = total_embedding_map / len(prompt_embedding_list)
+        avg_embedding_map = F.adaptive_avg_pool2d(avg_embedding_map.unsqueeze(0), (H // pool_size, W // pool_size)).squeeze(0)
+
+        os.makedirs(os.path.join(args.data, "molmo_multi"), exist_ok=True)
+        feature_save_path = os.path.join(args.data, "molmo_multi", f"{image_name}_fmap_CxHxW.pt")
+        torch.save(avg_embedding_map, feature_save_path)
+
+        # Save the overlaid mask image
         plt.figure(figsize=(10, 10))
         plt.imshow(image)
-        # show mask
-        show_mask(masks[0], plt.gca())
-        # show box
-        # if args.box is not None:
-        #     show_box(input_box, plt.gca())
-        # show point
-        show_points(input_point, input_label, plt.gca())
+        plt.imshow(mask_overlay, alpha=0.5)  # Blend the mask overlay with the image
         plt.axis('off')
-        plt.savefig(os.path.join(output_path, image_name + '.png'), bbox_inches='tight', pad_inches=0)
+        plt.savefig(os.path.join(output_path, image_name + '_overlay.png'), bbox_inches='tight', pad_inches=0)
         plt.close()
         
 
